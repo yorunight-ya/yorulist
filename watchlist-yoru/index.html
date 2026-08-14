@@ -1,1 +1,591 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>追劇清單</title>
+    <style>
+        :root {
+            --bg-color: #faf7f2;
+            --card-bg: #ffffff;
+            --primary-color: #d97757;
+            --primary-hover: #c86545;
+            --text-color: #4a403a;
+            --text-light: #8c827a;
+            --border-color: #e8e2d9;
+            --star-color: #e6a23c;
+            --watched-bg: #f3efe9;
+        }
 
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 850px;
+            position: relative;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        h1 {
+            font-weight: 500;
+            color: var(--primary-color);
+            margin-bottom: 8px;
+        }
+
+        .auth-btn {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background-color: transparent;
+            color: var(--text-light);
+            border: 1px solid var(--border-color);
+            padding: 6px 12px;
+            font-size: 13px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .auth-btn:hover {
+            background-color: #f0e9df;
+            color: var(--text-color);
+        }
+
+        .auth-btn.is-admin {
+            background-color: #e6f4ea;
+            color: #137333;
+            border-color: #ceead6;
+        }
+
+        .auth-btn.is-admin:hover {
+            background-color: #fce8e6;
+            color: #c5221f;
+            border-color: #fad2cf;
+        }
+
+        /* 🔒 管理員鎖控制：預設非管理員隱藏此區塊 */
+        .admin-only {
+            display: none !important;
+        }
+
+        /* 登入後顯示管理員專用區塊 */
+        body.is-admin-mode .admin-only {
+            display: block !important;
+        }
+
+        .control-panel {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            margin-bottom: 30px;
+            border: 1px solid var(--border-color);
+        }
+
+        .form-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .form-row:last-child {
+            margin-bottom: 0;
+        }
+
+        input, select, button {
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            font-size: 14px;
+            outline: none;
+        }
+
+        input, select {
+            flex: 1;
+            background-color: #fcfbf9;
+            color: var(--text-color);
+        }
+
+        input:focus, select:focus {
+            border-color: var(--primary-color);
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-secondary {
+            background-color: #eae3d9;
+            color: var(--text-color);
+        }
+
+        .btn-secondary:hover {
+            background-color: #dfd6c8;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 35px 0 15px 0;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .categories-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .category-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 18px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+        }
+
+        .category-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--bg-color);
+        }
+
+        .category-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+            color: var(--primary-color);
+        }
+
+        .item-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .item-list li {
+            padding: 8px 10px;
+            background: var(--bg-color);
+            border-radius: 6px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            gap: 8px;
+        }
+
+        .item-list li.is-watched {
+            background: var(--watched-bg);
+        }
+
+        .item-name {
+            flex: 1;
+            word-break: break-all;
+        }
+
+        .item-name.done {
+            text-decoration: line-through;
+            color: var(--text-light);
+        }
+
+        .item-actions {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 2px 5px;
+            font-size: 13px;
+            border-radius: 4px;
+            color: var(--text-light);
+        }
+
+        .icon-btn:hover {
+            background: #e2dad0;
+            color: var(--text-color);
+        }
+
+        .delete-btn:hover {
+            color: #d9534f;
+            background: #fbeae8;
+        }
+
+        .tag-category {
+            font-size: 11px;
+            background: #e6dfd5;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--text-color);
+            margin-right: 6px;
+        }
+
+        .stars {
+            color: var(--star-color);
+            font-size: 13px;
+            letter-spacing: 1px;
+        }
+
+        .watched-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>追劇清單</h1>
+        <button id="auth-btn" class="auth-btn" onclick="toggleAuth()">🔐 管理員登入</button>
+    </header>
+
+    <!-- 輸入面板：加上 admin-only，非管理員時自動隱藏 -->
+    <div class="control-panel admin-only">
+        <div class="form-row">
+            <input type="text" id="new-category-input" placeholder="輸入新分類名稱（如：紀錄片）">
+            <button class="btn-secondary" onclick="addCategory()">＋ 新增分類</button>
+        </div>
+        
+        <div class="form-row">
+            <select id="category-select"></select>
+            <input type="text" id="new-item-input" placeholder="輸入名稱（如：葬送的芙莉蓮）">
+            <button onclick="addItem()">＋ 新增項目</button>
+        </div>
+    </div>
+
+    <!-- 未看/主要分類區 -->
+    <div class="categories-grid" id="categories-container"></div>
+
+    <!-- 已看過分類區 -->
+    <div class="section-title">🎬 已看過清單</div>
+    <div class="watched-card">
+        <ul class="item-list" id="watched-container"></ul>
+    </div>
+</div>
+
+<!-- 載入 Firebase SDK -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // 🔒 管理員密碼設定（可在此修改密碼）
+    const ADMIN_PASSWORD = "0113";
+
+    // 管理員登入狀態
+    let isAdmin = localStorage.getItem("yoru_is_admin") === "true";
+
+    function updateAuthUI() {
+        const authBtn = document.getElementById("auth-btn");
+        if (isAdmin) {
+            authBtn.innerText = "🔓 管理員 (登出)";
+            authBtn.classList.add("is-admin");
+            document.body.classList.add("is-admin-mode");
+        } else {
+            authBtn.innerText = "🔐 管理員登入";
+            authBtn.classList.remove("is-admin");
+            document.body.classList.remove("is-admin-mode");
+        }
+    }
+
+    window.toggleAuth = function() {
+        if (isAdmin) {
+            if (confirm("確定要登出管理員權限嗎？")) {
+                isAdmin = false;
+                localStorage.removeItem("yoru_is_admin");
+                updateAuthUI();
+                render();
+            }
+        } else {
+            const pwd = prompt("🔑 請輸入管理員密碼：");
+            if (pwd === ADMIN_PASSWORD) {
+                isAdmin = true;
+                localStorage.setItem("yoru_is_admin", "true");
+                updateAuthUI();
+                render();
+                alert("🟢 登入成功！您現在可以進行編輯操作了。");
+            } else if (pwd !== null) {
+                alert("❌ 密碼錯誤！");
+            }
+        }
+    };
+
+    function checkAuth() {
+        if (!isAdmin) {
+            alert("🔒 只有管理員可以執行此操作，請點擊右上角「🔐 管理員登入」！");
+            return false;
+        }
+        return true;
+    }
+
+    // 小夜專屬的 Firebase 連線金鑰
+    const firebaseConfig = {
+      apiKey: "AIzaSyD3-hDM3yOLwBCaZ-_bVvMEDNNTnLm04Cs",
+      authDomain: "yoru-list.firebaseapp.com",
+      projectId: "yoru-list",
+      storageBucket: "yoru-list.firebasestorage.app",
+      messagingSenderId: "554422102207",
+      appId: "1:554422102207:web:5cf3b0e847bf477daf7e0a"
+    };
+
+    // 初始化 Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const docRef = doc(db, "mediaStore", "userListData");
+
+    // 預設資料
+    const defaultData = {
+        categories: ["動畫", "影集", "電影"],
+        items: [
+            { id: '1', category: '動畫', name: '葬送的芙莉蓮', watched: true, rating: 5 },
+            { id: '2', category: '動畫', name: '鬼滅之刃', watched: false, rating: 0 }
+        ]
+    };
+
+    let store = defaultData;
+
+    // 頁面載入時先更新 UI 狀態
+    updateAuthUI();
+
+    // 即時監聽雲端資料庫
+    onSnapshot(docRef, (snapshot) => {
+        if (snapshot.exists()) {
+            store = snapshot.data();
+        } else {
+            saveDataToCloud();
+        }
+        render();
+    }, (error) => {
+        console.error("Firebase 連線錯誤：", error);
+    });
+
+    // 儲存資料到雲端
+    async function saveDataToCloud() {
+        try {
+            await setDoc(docRef, store);
+        } catch (e) {
+            alert("資料同步失敗，請檢查網路狀態！");
+        }
+    }
+
+    // 將事件綁定到 window 供 HTML 按鈕呼叫
+    window.addCategory = function() {
+        if (!checkAuth()) return;
+
+        const input = document.getElementById('new-category-input');
+        const name = input.value.trim();
+
+        if (!name) return alert('請輸入分類名稱！');
+        if (store.categories.includes(name)) return alert('這個分類已經存在囉！');
+
+        store.categories.push(name);
+        input.value = '';
+        saveDataToCloud();
+    };
+
+    // 刪除分類功能
+    window.deleteCategory = function(catName) {
+        if (!checkAuth()) return;
+
+        const hasItems = store.items.some(item => item.category === catName);
+        let msg = `確定要刪除「${catName}」這個分類嗎？`;
+        if (hasItems) {
+            msg = `「${catName}」分類裡面還有項目喔！刪除分類會連同裡面的項目一起刪除，確定要刪除嗎？`;
+        }
+
+        if (confirm(msg)) {
+            store.categories = store.categories.filter(c => c !== catName);
+            store.items = store.items.filter(item => item.category !== catName);
+            saveDataToCloud();
+        }
+    };
+
+    window.addItem = function() {
+        if (!checkAuth()) return;
+
+        const select = document.getElementById('category-select');
+        const input = document.getElementById('new-item-input');
+        const category = select.value;
+        const name = input.value.trim();
+
+        if (!category) return alert('請先選擇分類！');
+        if (!name) return alert('請輸入項目名稱！');
+
+        store.items.push({
+            id: Date.now().toString(),
+            category: category,
+            name: name,
+            watched: false,
+            rating: 0
+        });
+
+        input.value = '';
+        saveDataToCloud();
+    };
+
+    window.deleteItem = function(id) {
+        if (!checkAuth()) return;
+
+        if (confirm('確定要刪除這個項目嗎？')) {
+            store.items = store.items.filter(item => item.id !== id);
+            saveDataToCloud();
+        }
+    };
+
+    window.markAsWatched = function(id) {
+        if (!checkAuth()) return;
+
+        const item = store.items.find(i => i.id === id);
+        if (!item) return;
+
+        let currentRating = item.watched ? item.rating : 5;
+        let input = prompt(`請為《${item.name}》給予評分（0 ～ 5 分）：`, currentRating);
+
+        if (input === null) return;
+
+        let rating = parseFloat(input);
+        if (isNaN(rating) || rating < 0 || rating > 5) {
+            alert('評分請輸入 0 到 5 之間的數字！');
+            return;
+        }
+
+        item.watched = true;
+        item.rating = rating;
+        saveDataToCloud();
+    };
+
+    window.toggleUnwatched = function(id) {
+        if (!checkAuth()) return;
+
+        const item = store.items.find(i => i.id === id);
+        if (item) {
+            item.watched = false;
+            item.rating = 0;
+            saveDataToCloud();
+        }
+    };
+
+    function getStarRating(rating) {
+        let stars = '';
+        let full = Math.floor(rating);
+        let half = rating % 1 >= 0.5;
+
+        for (let i = 0; i < full; i++) stars += '★';
+        if (half) stars += '½';
+        return stars || '0分';
+    }
+
+    function render() {
+        const select = document.getElementById('category-select');
+        const container = document.getElementById('categories-container');
+        const watchedContainer = document.getElementById('watched-container');
+
+        select.innerHTML = '';
+        container.innerHTML = '';
+        watchedContainer.innerHTML = '';
+
+        store.categories.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat;
+            option.textContent = cat;
+            select.appendChild(option);
+        });
+
+        store.categories.forEach(cat => {
+            const card = document.createElement('div');
+            card.className = 'category-card';
+
+            const catItems = store.items.filter(i => i.category === cat);
+
+            let itemsHtml = catItems.map(item => `
+                <li class="${item.watched ? 'is-watched' : ''}">
+                    <span class="item-name ${item.watched ? 'done' : ''}">
+                        ${item.watched ? '✓ ' : ''}${item.name}
+                    </span>
+                    <div class="item-actions">
+                        <button class="icon-btn" onclick="markAsWatched('${item.id}')" title="標記/修改評分">
+                            ${item.watched ? '⭐ ' + item.rating : '👁️ 看過'}
+                        </button>
+                        ${isAdmin ? `<button class="icon-btn delete-btn" onclick="deleteItem('${item.id}')" title="刪除項目">✕</button>` : ''}
+                    </div>
+                </li>
+            `).join('');
+
+            const deleteCatBtnHtml = isAdmin ? `<button class="icon-btn delete-btn" onclick="deleteCategory('${cat}')" title="刪除整個分類">🗑️</button>` : '';
+
+            card.innerHTML = `
+                <div class="category-header">
+                    <h2 class="category-title">${cat}</h2>
+                    ${deleteCatBtnHtml}
+                </div>
+                <ul class="item-list">
+                    ${itemsHtml || '<li style="color: var(--text-light); background: none;">尚無項目</li>'}
+                </ul>
+            `;
+            container.appendChild(card);
+        });
+
+        const watchedItems = store.items.filter(i => i.watched);
+
+        if (watchedItems.length === 0) {
+            watchedContainer.innerHTML = '<li style="color: var(--text-light); background: none; justify-content: center;">還沒有看過的紀錄喔！</li>';
+        } else {
+            watchedItems.forEach(item => {
+                const li = document.createElement('li');
+                const adminWatchedActions = isAdmin ? `
+                    <div class="item-actions">
+                        <button class="icon-btn" onclick="markAsWatched('${item.id}')" title="修改分數">✏️</button>
+                        <button class="icon-btn" onclick="toggleUnwatched('${item.id}')" title="移出已看過">↩️ 取消</button>
+                    </div>
+                ` : '';
+
+                li.innerHTML = `
+                    <span class="item-name">
+                        <span class="tag-category">${item.category}</span>
+                        ${item.name}
+                    </span>
+                    <span class="stars">${getStarRating(item.rating)} (${item.rating}分)</span>
+                    ${adminWatchedActions}
+                `;
+                watchedContainer.appendChild(li);
+            });
+        }
+    }
+</script>
+
+</body>
+</html>
