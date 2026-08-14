@@ -1,1 +1,726 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>小說書單</title>
+  <style>
+    :root {
+      --bg-color: #fcf8f2;
+      --card-bg: #ffffff;
+      --text-main: #4a403a;
+      --accent-color: #d99b73;
+      --accent-hover: #c48760;
+      --border-color: #eee2d5;
+      --star-color: #eab308;
+      --tag-bg: #ebdcd0;
+      --tag-text: #5c4d43;
+      --danger-color: #e57373;
+    }
 
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      padding: 2rem 1rem;
+      max-width: 1050px;
+      margin: 0 auto;
+      line-height: 1.5;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+      position: relative;
+    }
+    h1 { font-weight: 600; font-size: 1.8rem; color: #3a322d; margin-bottom: 0.5rem; }
+    p.subtitle { font-size: 0.9rem; color: #8c7e75; }
+    
+    /* 登入按鈕區域 */
+    .auth-bar {
+      position: absolute;
+      top: 0;
+      right: 0;
+    }
+    .auth-btn {
+      background: none;
+      color: #a89a90;
+      border: 1px solid var(--border-color);
+      padding: 0.3rem 0.8rem;
+      font-size: 0.8rem;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .auth-btn:hover { background: #f5ebe1; color: var(--text-main); }
+    .auth-btn.is-admin {
+      background-color: var(--accent-color);
+      color: white;
+      border-color: var(--accent-color);
+    }
+
+    /* 按鈕樣式 */
+    button {
+      background-color: var(--accent-color);
+      color: white;
+      border: none;
+      padding: 0.6rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background 0.2s;
+    }
+    button:hover { background-color: var(--accent-hover); }
+    .btn-secondary {
+      background-color: var(--tag-bg);
+      color: var(--tag-text);
+    }
+    .btn-secondary:hover { background-color: #dfcdbf; }
+
+    /* 管理動作區塊 (預設隱藏) */
+    .admin-only {
+      display: none !important;
+    }
+    body.is-admin .admin-only {
+      display: flex !important;
+    }
+
+    .top-actions {
+      justify-content: flex-end;
+      gap: 0.8rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    /* 表單區塊 */
+    .form-container {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+      flex-direction: column;
+    }
+    .form-row {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    .form-group {
+      flex: 1;
+      min-width: 200px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    label { font-size: 0.85rem; font-weight: 600; color: #786c64; }
+    input, select, textarea {
+      padding: 0.6rem;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 0.95rem;
+      outline: none;
+      background: #faf8f5;
+      color: var(--text-main);
+      font-family: inherit;
+    }
+    input:disabled, select:disabled {
+      background: #eee;
+      color: #aaa;
+      cursor: not-allowed;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent-color); background: #fff; }
+    textarea { resize: vertical; min-height: 70px; }
+    
+    .inline-group {
+      display: flex;
+      gap: 0.3rem;
+    }
+    .inline-group select { flex: 1; }
+
+    /* 動態自訂欄位區域 */
+    .custom-fields-area {
+      border-top: 1px dashed var(--border-color);
+      padding-top: 1rem;
+      margin-top: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .custom-fields-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #786c64;
+      margin-bottom: 0.8rem;
+    }
+
+    /* 看板區域 */
+    .board {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+      align-items: start;
+    }
+    .column {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.2rem;
+      min-height: 200px;
+    }
+    .column-header {
+      font-size: 1.1rem;
+      font-weight: 600;
+      padding-bottom: 0.8rem;
+      margin-bottom: 1rem;
+      border-bottom: 2px solid var(--bg-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* 大分類刪除按鈕 */
+    .cat-delete-btn {
+      background: none;
+      color: #b5a8a0;
+      padding: 0.2rem 0.5rem;
+      font-size: 0.85rem;
+      border-radius: 4px;
+      line-height: 1;
+    }
+    .cat-delete-btn:hover {
+      color: #e56b6b;
+      background: #fdf2f2;
+    }
+
+    /* 小說卡片 */
+    .book-card {
+      background: #faf8f6;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 0.8rem;
+      position: relative;
+    }
+    .book-title { font-weight: 600; font-size: 1.05rem; margin-bottom: 0.4rem; padding-right: 1.5rem; color: #3a322d; }
+    .book-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+      color: #8c7e75;
+      margin-bottom: 0.6rem;
+    }
+    .tag {
+      background: var(--tag-bg);
+      color: var(--tag-text);
+      padding: 0.1rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    .stars { color: var(--star-color); letter-spacing: 2px; }
+    
+    /* 資訊項目清單 */
+    .book-info-list {
+      font-size: 0.85rem;
+      color: #63564d;
+      background: #fff;
+      padding: 0.6rem 0.8rem;
+      border-radius: 6px;
+      border: 1px solid #f0e6dc;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+    .info-item {
+      display: flex;
+      gap: 0.4rem;
+    }
+    .info-label {
+      color: #9c8e85;
+      font-weight: 500;
+      min-width: 48px;
+    }
+    .info-value {
+      color: #4a403a;
+      word-break: break-all;
+    }
+
+    .card-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.4rem;
+      margin-top: 0.8rem;
+      padding-top: 0.5rem;
+      border-top: 1px dashed var(--border-color);
+    }
+
+    .delete-btn {
+      position: absolute;
+      top: 0.6rem;
+      right: 0.6rem;
+      background: none;
+      color: #b5a8a0;
+      padding: 0.2rem 0.4rem;
+      font-size: 0.85rem;
+      line-height: 1;
+    }
+    .delete-btn:hover { color: #e56b6b; background: none; }
+
+    /* Modal 彈出視窗（用於編輯） */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 550px;
+      padding: 1.5rem;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .empty-tip {
+      color: #8c7e75;
+      font-size: 0.9rem;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="auth-bar">
+      <button class="auth-btn" id="authBtn" onclick="toggleAuth()">🔑 管理員登入</button>
+    </div>
+    <h1>小說書單</h1>
+    <p class="subtitle">紀錄每一本陪伴過你的好書</p>
+  </header>
+
+  <!-- 表單區塊（僅限管理員顯示） -->
+  <div class="form-container admin-only">
+    <div style="font-weight: 600; margin-bottom: 1rem; color: #3a322d;">✨ 新增小說項目</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="bookTitle">書名 *</label>
+        <input type="text" id="bookTitle" placeholder="例如：詭秘之主">
+      </div>
+      <div class="form-group">
+        <label for="bookAuthor">作者</label>
+        <input type="text" id="bookAuthor" placeholder="例如：愛潛水的烏賊">
+      </div>
+      <div class="form-group">
+        <label for="bookProtagonist">主角</label>
+        <input type="text" id="bookProtagonist" placeholder="例如：克萊恩">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="bookGenre">小說類型</label>
+        <div class="inline-group">
+          <select id="bookGenre"></select>
+          <button type="button" class="btn-secondary" onclick="addSubCategory()">+ 類型</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="bookMainCat">大分類</label>
+        <div class="inline-group">
+          <select id="bookMainCat"></select>
+          <button type="button" class="btn-secondary" onclick="addMainCategory()">+ 分類</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="bookRating">評分 (0 ~ 5 星)</label>
+        <select id="bookRating">
+          <option value="5">⭐⭐⭐⭐⭐ (5分)</option>
+          <option value="4">⭐⭐⭐⭐ (4分)</option>
+          <option value="3">⭐⭐⭐ (3分)</option>
+          <option value="2">⭐⭐ (2分)</option>
+          <option value="1">⭐ (1分)</option>
+          <option value="0">0 星 / 尚未評分</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-bottom: 1rem;">
+      <label for="bookReview">💬 簡評 / 觀後感</label>
+      <textarea id="bookReview" placeholder="寫下對這本書的想法、喜愛的角色或避雷提醒..."></textarea>
+    </div>
+
+    <div>
+      <button type="button" onclick="addBook()">加入書單</button>
+    </div>
+  </div>
+
+  <!-- 看板容器 -->
+  <div id="categoriesContainer" class="board"></div>
+
+  <!-- 編輯 Modal -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 style="font-size: 1.1rem; color: #3a322d;">✏️ 編輯書籍內容</h3>
+        <button type="button" class="btn-secondary" style="padding: 0.2rem 0.6rem;" onclick="closeEditModal()">✕ 關閉</button>
+      </div>
+      <input type="hidden" id="editBookId">
+      <div class="form-row" style="flex-direction: column; gap: 0.8rem;">
+        <div class="form-group">
+          <label for="editTitle">書名 *</label>
+          <input type="text" id="editTitle">
+        </div>
+        <div class="form-row" style="margin-bottom:0;">
+          <div class="form-group">
+            <label for="editAuthor">作者</label>
+            <input type="text" id="editAuthor">
+          </div>
+          <div class="form-group">
+            <label for="editProtagonist">主角</label>
+            <input type="text" id="editProtagonist">
+          </div>
+        </div>
+        <div class="form-row" style="margin-bottom:0;">
+          <div class="form-group">
+            <label for="editGenre">小說類型</label>
+            <select id="editGenre"></select>
+          </div>
+          <div class="form-group">
+            <label for="editMainCat">大分類</label>
+            <select id="editMainCat"></select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="editRating">評分</label>
+          <select id="editRating">
+            <option value="5">⭐⭐⭐⭐⭐ (5分)</option>
+            <option value="4">⭐⭐⭐⭐ (4分)</option>
+            <option value="3">⭐⭐⭐ (3分)</option>
+            <option value="2">⭐⭐ (2分)</option>
+            <option value="1">⭐ (1分)</option>
+            <option value="0">0 星 / 尚未評分</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="editReview">💬 簡評 / 觀後感</label>
+          <textarea id="editReview"></textarea>
+        </div>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+        <button type="button" class="btn-secondary" onclick="closeEditModal()">取消</button>
+        <button type="button" onclick="saveEditedBook()">儲存修改</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 🔒 管理員密碼設定
+    const ADMIN_PASSWORD = "0113";
+
+    // 管理員登入狀態
+    let isAdmin = localStorage.getItem("yoru_is_admin") === "true";
+
+    function updateAuthUI() {
+      const authBtn = document.getElementById("authBtn");
+      if (isAdmin) {
+        authBtn.innerText = "🔓 管理員 (登出)";
+        authBtn.classList.add("is-admin");
+        document.body.classList.add("is-admin");
+      } else {
+        authBtn.innerText = "🔑 管理員登入";
+        authBtn.classList.remove("is-admin");
+        document.body.classList.remove("is-admin");
+      }
+    }
+
+    window.toggleAuth = function() {
+      if (isAdmin) {
+        if (confirm("確定要登出管理員權限嗎？")) {
+          isAdmin = false;
+          localStorage.removeItem("yoru_is_admin");
+          updateAuthUI();
+          renderBooks();
+        }
+      } else {
+        const pwd = prompt("🔑 請輸入管理員密碼：");
+        if (pwd === ADMIN_PASSWORD) {
+          isAdmin = true;
+          localStorage.setItem("yoru_is_admin", "true");
+          updateAuthUI();
+          renderBooks();
+          alert("🟢 登入成功！您現在可以進行編輯操作了。");
+        } else if (pwd !== null) {
+          alert("❌ 密碼錯誤！");
+        }
+      }
+    };
+
+    function checkAuth() {
+      if (!isAdmin) {
+        alert("🔒 只有管理員可以執行此操作，請點擊右上角「🔑 管理員登入」！");
+        return false;
+      }
+      return true;
+    }
+
+    // 預設資料
+    const defaultMainCategories = ['大推', '看過', '還沒看'];
+    const defaultSubCategories = ['無限流', '修仙', '玄幻', '都市', '科幻', '懸疑', '言情', '耽美', '其他'];
+
+    let mainCategories = JSON.parse(localStorage.getItem('novel_main_cats')) || defaultMainCategories;
+    let subCategories = JSON.parse(localStorage.getItem('novel_sub_cats')) || defaultSubCategories;
+    let books = JSON.parse(localStorage.getItem('novel_books')) || [];
+
+    function saveData() {
+      localStorage.setItem('novel_main_cats', JSON.stringify(mainCategories));
+      localStorage.setItem('novel_sub_cats', JSON.stringify(subCategories));
+      localStorage.setItem('novel_books', JSON.stringify(books));
+    }
+
+    function renderSelects() {
+      const genreSelect = document.getElementById('bookGenre');
+      const mainCatSelect = document.getElementById('bookMainCat');
+      const editGenreSelect = document.getElementById('editGenre');
+      const editMainCatSelect = document.getElementById('editMainCat');
+
+      genreSelect.innerHTML = subCategories.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+      editGenreSelect.innerHTML = genreSelect.innerHTML;
+
+      mainCatSelect.innerHTML = mainCategories.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+      editMainCatSelect.innerHTML = mainCatSelect.innerHTML;
+    }
+
+    function addBook() {
+      if (!checkAuth()) return;
+
+      const title = document.getElementById('bookTitle').value.trim();
+      const author = document.getElementById('bookAuthor').value.trim();
+      const protagonist = document.getElementById('bookProtagonist').value.trim();
+      const genre = document.getElementById('bookGenre').value;
+      const mainCat = document.getElementById('bookMainCat').value;
+      const rating = parseInt(document.getElementById('bookRating').value);
+      const review = document.getElementById('bookReview').value.trim();
+
+      if (!title) {
+        alert('請填寫書名！');
+        return;
+      }
+
+      const newBook = {
+        id: 'book_' + Date.now(),
+        title,
+        author,
+        protagonist,
+        genre,
+        mainCat,
+        rating,
+        review
+      };
+
+      books.push(newBook);
+      saveData();
+      renderBooks();
+
+      document.getElementById('bookTitle').value = '';
+      document.getElementById('bookAuthor').value = '';
+      document.getElementById('bookProtagonist').value = '';
+      document.getElementById('bookReview').value = '';
+    }
+
+    function openEditModal(id) {
+      if (!checkAuth()) return;
+
+      const book = books.find(b => b.id === id);
+      if (!book) return;
+
+      document.getElementById('editBookId').value = book.id;
+      document.getElementById('editTitle').value = book.title || '';
+      document.getElementById('editAuthor').value = book.author || '';
+      document.getElementById('editProtagonist').value = book.protagonist || '';
+      document.getElementById('editGenre').value = book.genre || subCategories[0];
+      document.getElementById('editMainCat').value = book.mainCat || mainCategories[0];
+      document.getElementById('editRating').value = book.rating !== undefined ? book.rating : 5;
+      document.getElementById('editReview').value = book.review || '';
+
+      document.getElementById('editModal').classList.add('active');
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').classList.remove('active');
+    }
+
+    function saveEditedBook() {
+      if (!checkAuth()) return;
+
+      const id = document.getElementById('editBookId').value;
+      const bookIndex = books.findIndex(b => b.id === id);
+      if (bookIndex === -1) return;
+
+      const title = document.getElementById('editTitle').value.trim();
+      if (!title) {
+        alert('書名不能為空！');
+        return;
+      }
+
+      books[bookIndex] = {
+        ...books[bookIndex],
+        title,
+        author: document.getElementById('editAuthor').value.trim(),
+        protagonist: document.getElementById('editProtagonist').value.trim(),
+        genre: document.getElementById('editGenre').value,
+        mainCat: document.getElementById('editMainCat').value,
+        rating: parseInt(document.getElementById('editRating').value),
+        review: document.getElementById('editReview').value.trim()
+      };
+
+      saveData();
+      renderBooks();
+      closeEditModal();
+    }
+
+    function deleteBook(id) {
+      if (!checkAuth()) return;
+
+      if (confirm('確定要刪除這本書嗎？')) {
+        books = books.filter(b => b.id !== id);
+        saveData();
+        renderBooks();
+      }
+    }
+
+    function addMainCategory() {
+      if (!checkAuth()) return;
+
+      const name = prompt('請輸入新的大分類名稱（例如：追更中）：');
+      if (name && name.trim()) {
+        const catName = name.trim();
+        if (mainCategories.includes(catName)) {
+          alert('這個分類已經存在囉！');
+          return;
+        }
+        mainCategories.push(catName);
+        saveData();
+        renderSelects();
+        renderBooks();
+      }
+    }
+
+    function deleteMainCategory(catName) {
+      if (!checkAuth()) return;
+
+      if (confirm(`確定要刪除「${catName}」大分類嗎？該分類下的書籍也會一併刪除！`)) {
+        mainCategories = mainCategories.filter(c => c !== catName);
+        books = books.filter(b => b.mainCat !== catName);
+        saveData();
+        renderSelects();
+        renderBooks();
+      }
+    }
+
+    function addSubCategory() {
+      if (!checkAuth()) return;
+
+      const name = prompt('請輸入新的小說類型（例如：無限流、修仙）：');
+      if (name && name.trim()) {
+        const subName = name.trim();
+        if (subCategories.includes(subName)) {
+          alert('這個類型已經存在囉！');
+          return;
+        }
+        subCategories.push(subName);
+        saveData();
+        renderSelects();
+      }
+    }
+
+    function getStars(rating) {
+      if (!rating || rating <= 0) return '<span style="color: #a89a90;">尚未評分</span>';
+      return '★'.repeat(rating) + '☆'.repeat(5 - rating);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function renderBooks() {
+      const container = document.getElementById('categoriesContainer');
+      container.innerHTML = '';
+
+      mainCategories.forEach(cat => {
+        const catBooks = books.filter(b => b.mainCat === cat);
+
+        const column = document.createElement('div');
+        column.className = 'column';
+
+        let booksHtml = '';
+        if (catBooks.length === 0) {
+          booksHtml = '<div class="empty-tip">尚無書籍資料</div>';
+        } else {
+          booksHtml = catBooks.map(book => `
+            <div class="book-card">
+              <div class="book-title">${escapeHtml(book.title)}</div>
+              <div class="book-meta">
+                <span class="tag">${escapeHtml(book.genre)}</span>
+                <span class="stars">${getStars(book.rating)}</span>
+              </div>
+              <div class="book-info-list">
+                ${book.author ? `<div class="info-item"><span class="info-label">✍️ 作者</span><span class="info-value">${escapeHtml(book.author)}</span></div>` : ''}
+                ${book.protagonist ? `<div class="info-item"><span class="info-label">👤 主角</span><span class="info-value">${escapeHtml(book.protagonist)}</span></div>` : ''}
+                ${book.review ? `<div class="info-item" style="margin-top:0.2rem;"><span class="info-label">💬 簡評</span><span class="info-value">${escapeHtml(book.review)}</span></div>` : ''}
+              </div>
+              <div class="card-actions admin-only">
+                <button type="button" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size:0.75rem;" onclick="openEditModal('${book.id}')">✏️ 編輯</button>
+                <button type="button" style="padding: 0.2rem 0.5rem; font-size:0.75rem; background-color: var(--danger-color);" onclick="deleteBook('${book.id}')">🗑️ 刪除</button>
+              </div>
+            </div>
+          `).join('');
+        }
+
+        column.innerHTML = `
+          <div class="column-header">
+            <span>${escapeHtml(cat)} (${catBooks.length})</span>
+            <button class="cat-delete-btn admin-only" onclick="deleteMainCategory('${escapeHtml(cat)}')">🗑️ 刪除</button>
+          </div>
+          ${booksHtml}
+        `;
+
+        container.appendChild(column);
+      });
+    }
+
+    // 初始化執行
+    updateAuthUI();
+    renderSelects();
+    renderBooks();
+  </script>
+</body>
+</html>
